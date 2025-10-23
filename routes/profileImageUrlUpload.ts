@@ -20,15 +20,22 @@ export function profileImageUrlUpload () {
       if (url.match(/(.)*solve\/challenges\/server-side(.)*/) !== null) req.app.locals.abused_ssrf_bug = true
 
       // SSRF protection: Only allow requests to safe image host domains
-      let allowedHosts = ['imgur.com', 'images.example.com'] // Add your trusted domains here
+      const allowedHosts = ['imgur.com', 'images.example.com'] // Add your trusted domains here
       let parsedUrl
       try {
         parsedUrl = new URL(url)
       } catch(e) {
         return next(new Error('Invalid image URL provided'))
       }
-      if (!((parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
-            allowedHosts.includes(parsedUrl.hostname))) {
+      // SSRF strict hostname and port check
+      function isAllowedHost(hostname: string, allowedHosts: string[]): boolean {
+        // Matches exactly one of the allowed hosts (prevent subdomain/typo attempts)
+        return allowedHosts.some(allowed => hostname === allowed)
+      }
+      const isAllowed =
+        (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
+        isAllowedHost(parsedUrl.hostname, allowedHosts)
+      if (!isAllowed) {
         return next(new Error('Image URL points to an unallowed host'))
       }
 
