@@ -28,13 +28,18 @@ export function profileImageUrlUpload () {
         return next(new Error('Invalid image URL provided'))
       }
       // SSRF strict hostname and port check
-      function isAllowedHost(hostname: string, allowedHosts: string[]): boolean {
-        // Matches exactly one of the allowed hosts (prevent subdomain/typo attempts)
-        return allowedHosts.some(allowed => hostname === allowed)
+      function isAllowedHost(hostname: string, port: string | null, protocol: string, allowedHosts: string[]): boolean {
+        // Matches exactly one of the allowed hosts (prevent subdomain/typo attempts) and default port only
+        // imgur.com and images.example.com only, *no* subdomains, *no* custom port
+        const defaultPort = protocol === 'https:' ? '443' : protocol === 'http:' ? '80' : ''
+        return allowedHosts.some(allowed =>
+          hostname === allowed &&
+          (port === '' || port === null || port === defaultPort)
+        )
       }
       const isAllowed =
         (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
-        isAllowedHost(parsedUrl.hostname, allowedHosts)
+        isAllowedHost(parsedUrl.hostname, parsedUrl.port, parsedUrl.protocol, allowedHosts)
       if (!isAllowed) {
         return next(new Error('Image URL points to an unallowed host'))
       }
